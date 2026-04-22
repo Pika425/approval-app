@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "appId": "68f8ed42-7efc-4580-b601-80c323e41b1a",
+  "appDisplayName": "LunchOrderSystem",
+  "region": "prod",
+  "environmentId": "c2174e94-1094-ecbc-b59f-468841a6d799",
+  "description": "訂餐系統 Code App",
+  "buildPath": "./dist",
+  "buildEntryPoint": "index.html",
+  "localAppUrl": "http://localhost:5173/",
+  "logoPath": "Default",
+  "connectionReferences": {},
+  "databaseReferences": {
+    "default.cds": {
+      "dataSources": {
+        "cr628_approvalrequests": {
+          "entitySetName": "cr628_approvalrequests",
+          "logicalName": "cr628_approvalrequest"
+        }
+      },
+      "environmentVariableName": ""
+    }
+  }
+}
