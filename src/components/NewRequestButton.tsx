@@ -41,11 +41,13 @@ export default function NewRequestButton({ applicantName, applicantEmail, onSubm
   const [type, setType] = useState("出差申請");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const forcedApprover =
+    (import.meta.env.VITE_FORCE_APPROVER_NAME as string) || "林廷軒";
 
   const firstApprover =
-    (import.meta.env.VITE_DEFAULT_APPROVER_1 as string) || "李組長";
+    (import.meta.env.VITE_DEFAULT_APPROVER_1 as string) || forcedApprover;
   const secondApprover =
-    (import.meta.env.VITE_DEFAULT_APPROVER_2 as string) || "王經理";
+    (import.meta.env.VITE_DEFAULT_APPROVER_2 as string) || forcedApprover;
   const defaultDepartment =
     (import.meta.env.VITE_DEFAULT_DEPARTMENT as string) || "未設定部門";
 

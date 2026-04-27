@@ -11,6 +11,8 @@ const TRIGGER_FLOW_URL = import.meta.env.VITE_FLOW_TRIGGER_URL as string;
 const GET_APPROVALS_FLOW_URL = import.meta.env.VITE_FLOW_GET_APPROVALS_URL as string;
 const CREATE_APPROVAL_FLOW_URL = import.meta.env.VITE_FLOW_CREATE_APPROVAL_URL as string;
 const UPDATE_APPROVAL_FLOW_URL = import.meta.env.VITE_FLOW_UPDATE_APPROVAL_URL as string;
+const FORCE_APPROVER_NAME =
+  (import.meta.env.VITE_FORCE_APPROVER_NAME as string) || "林廷軒";
 
 export type FlowPayload = {
   requestId: string;
@@ -30,7 +32,16 @@ export function getBackendDisplayName(): string {
 }
 
 function normalizeApproval(item: RawApprovalRequest): ApprovalRequest {
-  const approvers = Array.isArray(item.approvers) ? item.approvers : [];
+  const approvers = (Array.isArray(item.approvers) ? item.approvers : []).map((approver) => {
+    if (approver?.status !== "pending") {
+      return approver;
+    }
+
+    return {
+      ...approver,
+      name: FORCE_APPROVER_NAME,
+    };
+  });
   const hasRejected = approvers.some((a) => a?.status === "rejected");
   const hasPending = approvers.some((a) => a?.status === "pending");
   const allApproved = approvers.length > 0 && approvers.every((a) => a?.status === "approved");
@@ -46,6 +57,9 @@ function normalizeApproval(item: RawApprovalRequest): ApprovalRequest {
 
   const fallbackCurrentApprover =
     approvers.find((a) => a?.status === "pending")?.name || "";
+  const currentApprover = hasPending
+    ? FORCE_APPROVER_NAME
+    : item.currentApprover || fallbackCurrentApprover;
 
   return {
     id: item.id || item.requestId || crypto.randomUUID(),
@@ -58,7 +72,7 @@ function normalizeApproval(item: RawApprovalRequest): ApprovalRequest {
     amount: item.amount,
     description: item.description || "",
     status: derivedStatus,
-    currentApprover: item.currentApprover || fallbackCurrentApprover,
+    currentApprover,
     approvers,
     attachments: Array.isArray(item.attachments) ? item.attachments : [],
   };
