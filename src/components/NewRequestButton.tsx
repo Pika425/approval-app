@@ -29,16 +29,25 @@ const useStyles = makeStyles({
 const requestTypes = ["出差申請", "採購申請", "請假申請", "加班申請", "費用報銷"];
 
 type Props = {
+  applicantName: string;
+  applicantEmail: string;
   onSubmit: (request: ApprovalRequest) => void;
 };
 
-export default function NewRequestButton({ onSubmit }: Props) {
+export default function NewRequestButton({ applicantName, applicantEmail, onSubmit }: Props) {
   const styles = useStyles();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [type, setType] = useState("出差申請");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+
+  const firstApprover =
+    (import.meta.env.VITE_DEFAULT_APPROVER_1 as string) || "李組長";
+  const secondApprover =
+    (import.meta.env.VITE_DEFAULT_APPROVER_2 as string) || "王經理";
+  const defaultDepartment =
+    (import.meta.env.VITE_DEFAULT_DEPARTMENT as string) || "未設定部門";
 
   const handleSubmit = () => {
     const now = new Date();
@@ -48,17 +57,17 @@ export default function NewRequestButton({ onSubmit }: Props) {
       id,
       title: title || `${type}`,
       type,
-      applicant: "林廷軒",
-      applicantEmail: "B11410001@pershing.com.tw",
-      department: "雲端事業處",
+      applicant: applicantName,
+      applicantEmail,
+      department: defaultDepartment,
       submitDate: now.toISOString().slice(0, 10),
       amount: amount ? Number(amount) : undefined,
       description,
       status: "pending",
-      currentApprover: "李組長",
+      currentApprover: firstApprover,
       approvers: [
-        { order: 1, name: "李組長", role: "直屬主管", status: "pending" },
-        { order: 2, name: "王經理", role: "部門經理", status: "pending" },
+        { order: 1, name: firstApprover, role: "直屬主管", status: "pending" },
+        { order: 2, name: secondApprover, role: "部門經理", status: "pending" },
       ],
     };
 

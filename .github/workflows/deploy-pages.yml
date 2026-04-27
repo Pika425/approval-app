@@ -33,6 +33,12 @@ jobs:
       - name: Build
         env:
           VITE_API_MODE: ${{ secrets.VITE_API_MODE }}
+          VITE_AAD_CLIENT_ID: ${{ secrets.VITE_AAD_CLIENT_ID }}
+          VITE_AAD_TENANT_ID: ${{ secrets.VITE_AAD_TENANT_ID }}
+          VITE_AAD_REDIRECT_URI: ${{ secrets.VITE_AAD_REDIRECT_URI }}
+          VITE_DEFAULT_DEPARTMENT: ${{ secrets.VITE_DEFAULT_DEPARTMENT }}
+          VITE_DEFAULT_APPROVER_1: ${{ secrets.VITE_DEFAULT_APPROVER_1 }}
+          VITE_DEFAULT_APPROVER_2: ${{ secrets.VITE_DEFAULT_APPROVER_2 }}
           VITE_FLOW_TRIGGER_URL: ${{ secrets.VITE_FLOW_TRIGGER_URL }}
           VITE_FLOW_GET_APPROVALS_URL: ${{ secrets.VITE_FLOW_GET_APPROVALS_URL }}
           VITE_FLOW_CREATE_APPROVAL_URL: ${{ secrets.VITE_FLOW_CREATE_APPROVAL_URL }}

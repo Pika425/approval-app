@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.8.0",
     "@fluentui/react-components": "^9.73.7",
     "@fluentui/react-icons": "^2.0.324",
     "@microsoft/power-apps": "^1.1.1",

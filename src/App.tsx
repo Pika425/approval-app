@@ -33,6 +33,13 @@ import {
   triggerApprovalFlow,
   updateApproval,
 } from "./services/flowService";
+import {
+  accountToUser,
+  getMsalInstance,
+  isAadConfigured,
+  loginRequest,
+  type AuthUser,
+} from "./auth/msalClient";
 
 const useStyles = makeStyles({
   root: {
@@ -100,6 +107,28 @@ const useStyles = makeStyles({
     padding: "2px 10px",
     fontSize: "12px",
   },
+  userBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.35)",
+    borderRadius: "999px",
+    padding: "6px 10px",
+  },
+  loginPanel: {
+    maxWidth: "560px",
+    margin: "64px auto",
+    backgroundColor: "#fff",
+    borderRadius: tokens.borderRadiusLarge,
+    boxShadow: tokens.shadow8,
+    padding: "24px",
+  },
+  loginActions: {
+    display: "flex",
+    gap: "10px",
+    marginTop: "16px",
+  },
 });
 
 type TabValue = "pending" | "my-requests" | "history" | "data-table";
@@ -123,8 +152,12 @@ const demoColumns: ColumnDef[] = [
 function AppContent() {
   const styles = useStyles();
   const backendName = getBackendDisplayName();
+  const msal = isAadConfigured ? getMsalInstance() : null;
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [tab, setTab] = useState<TabValue>("pending");
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authError, setAuthError] = useState<string>("");
+  const [authReady, setAuthReady] = useState(!isAadConfigured);
   const [envHealth, setEnvHealth] = useState<EnvHealth>({
     url: window.location.href,
     host: window.location.host,
@@ -137,6 +170,33 @@ function AppContent() {
 
   const toasterId = useId("toaster");
   const { dispatchToast } = useToastController(toasterId);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      if (!msal) return;
+      try {
+        await msal.initialize();
+        await msal.handleRedirectPromise();
+
+        let account = msal.getActiveAccount();
+        if (!account) {
+          const accounts = msal.getAllAccounts();
+          if (accounts.length > 0) {
+            account = accounts[0];
+            msal.setActiveAccount(account);
+          }
+        }
+
+        setUser(account ? accountToUser(account) : null);
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : "登入初始化失敗");
+      } finally {
+        setAuthReady(true);
+      }
+    };
+
+    void initAuth();
+  }, [msal]);
 
   useEffect(() => {
     const load = async () => {
@@ -177,12 +237,18 @@ function AppContent() {
     void checkEnvironment();
   }, []);
 
-  const myEmail = "B11410001@pershing.com.tw";
+  const myEmail = user?.email || "";
+  const myName = user?.displayName || "";
+
+  const matchesCurrentUser = (nameOrEmail: string) => {
+    const candidate = nameOrEmail.trim().toLowerCase();
+    return candidate === myEmail.toLowerCase() || candidate === myName.toLowerCase();
+  };
 
   const pendingForMe = requests.filter(
     (r) =>
       r.status === "pending" &&
-      r.approvers.some((a) => a.status === "pending" && a.name === "林廷軒")
+      r.approvers.some((a) => a.status === "pending" && matchesCurrentUser(a.name))
   );
 
   const myRequests = requests.filter((r) => r.applicantEmail === myEmail);
@@ -192,6 +258,7 @@ function AppContent() {
   );
 
   const handleApprove = async (id: string, comment: string) => {
+    if (!myEmail) return;
     const request = requests.find((r) => r.id === id);
     if (request) {
       const ok = await triggerApprovalFlow({
@@ -216,7 +283,7 @@ function AppContent() {
       prev.map((r) => {
         if (r.id !== id) return r;
         const updatedApprovers = r.approvers.map((a) => {
-          if (a.status === "pending" && a.name === "林廷軒") {
+          if (a.status === "pending" && matchesCurrentUser(a.name)) {
             return {
               ...a,
               status: "approved" as const,
@@ -264,6 +331,7 @@ function AppContent() {
   };
 
   const handleReject = async (id: string, comment: string) => {
+    if (!myEmail) return;
     const request = requests.find((r) => r.id === id);
     if (request) {
       const ok = await triggerApprovalFlow({
@@ -288,7 +356,7 @@ function AppContent() {
       prev.map((r) => {
         if (r.id !== id) return r;
         const updatedApprovers = r.approvers.map((a) => {
-          if (a.status === "pending" && a.name === "林廷軒") {
+          if (a.status === "pending" && matchesCurrentUser(a.name)) {
             return {
               ...a,
               status: "rejected" as const,
@@ -354,6 +422,70 @@ function AppContent() {
     );
   };
 
+  const login = async () => {
+    if (!msal) return;
+    try {
+      setAuthError("");
+      const resp = await msal.loginPopup(loginRequest);
+      msal.setActiveAccount(resp.account);
+      if (resp.account) {
+        setUser(accountToUser(resp.account));
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "登入失敗");
+    }
+  };
+
+  const logout = async () => {
+    if (!msal) return;
+    await msal.logoutPopup();
+    setUser(null);
+  };
+
+  if (!isAadConfigured) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.loginPanel}>
+          <Text size={600} weight="bold">需要設定 Entra ID</Text>
+          <Text style={{ display: "block", marginTop: 12 }}>
+            請在環境變數設定 VITE_AAD_CLIENT_ID、VITE_AAD_TENANT_ID、VITE_AAD_REDIRECT_URI 後重新部署。
+          </Text>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authReady) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.loginPanel}>
+          <Text size={500}>登入初始化中...</Text>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.loginPanel}>
+          <Text size={600} weight="bold">簽核系統登入</Text>
+          <Text style={{ display: "block", marginTop: 12 }}>
+            請使用公司 Microsoft 帳號登入，系統會自動辨識目前使用者。
+          </Text>
+          {authError && (
+            <Text style={{ color: "#c50f1f", display: "block", marginTop: 12 }}>
+              {authError}
+            </Text>
+          )}
+          <div className={styles.loginActions}>
+            <button onClick={() => void login()}>使用 Microsoft 登入</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const currentList =
     tab === "pending"
       ? pendingForMe
@@ -370,7 +502,19 @@ function AppContent() {
           <Text size={600} weight="bold" style={{ color: "#fff" }}>
             簽核系統
           </Text>
-          <NewRequestButton onSubmit={handleNewRequest} />
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div className={styles.userBadge}>
+              <Text size={200} style={{ color: "#fff" }}>
+                {user.displayName} ({user.email})
+              </Text>
+            </div>
+            <button onClick={() => void logout()}>登出</button>
+            <NewRequestButton
+              applicantName={user.displayName}
+              applicantEmail={user.email}
+              onSubmit={handleNewRequest}
+            />
+          </div>
         </div>
       </div>
 
