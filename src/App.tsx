@@ -426,20 +426,22 @@ function AppContent() {
     if (!msal) return;
     try {
       setAuthError("");
-      const resp = await msal.loginPopup(loginRequest);
-      msal.setActiveAccount(resp.account);
-      if (resp.account) {
-        setUser(accountToUser(resp.account));
-      }
+      await msal.loginRedirect(loginRequest);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "登入失敗");
+      const message = error instanceof Error ? error.message : "登入失敗";
+      if (message.includes("interaction_in_progress")) {
+        setAuthError("登入流程進行中，請稍候或重新整理後再試一次。");
+        return;
+      }
+      setAuthError(message);
     }
   };
 
   const logout = async () => {
     if (!msal) return;
-    await msal.logoutPopup();
-    setUser(null);
+    await msal.logoutRedirect({
+      postLogoutRedirectUri: window.location.origin + "/approval-app/",
+    });
   };
 
   if (!isAadConfigured) {
